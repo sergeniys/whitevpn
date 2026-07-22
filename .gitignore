@@ -1,0 +1,6 @@
+node_modules/
+vpn_activity.log
+active_vpn_*.json
+temp_*.json
+temp_config_*.json
+temp_chain_*.json

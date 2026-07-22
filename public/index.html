@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VPN Suite & TUN Client</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header with Top-Right Live Traffic Gauge & Admin Indicator -->
+    <header class="app-header">
+      <div class="logo-group">
+        <div class="logo-icon">⚡</div>
+        <div>
+          <h1>VPN & Double Tunnel Suite <span class="badge-v2">PRO v8.0</span></h1>
+          <p class="subtitle">Принудительное обновление WinINet, определение внешнего IP/страны и блокировка QUIC</p>
+        </div>
+      </div>
+
+      <!-- Top Right Header Indicators -->
+      <div class="header-right-widgets">
+        <div id="admin-badge" class="badge badge-neutral">
+          <span class="icon">🛡️</span> АДМИН: ПРОВЕРКА...
+        </div>
+        <div id="header-traffic-gauge" class="traffic-gauge-box">
+          <span class="gauge-icon">⚡</span>
+          <span id="gauge-speed-val">0.0 Mbps</span>
+          <span class="gauge-divider">|</span>
+          <span id="gauge-ping-val">0 ms</span>
+        </div>
+        <button id="btn-dpi-check" class="btn btn-outline">
+          <span class="icon">🔍</span> Проверить DPI
+        </button>
+      </div>
+    </header>
+
+    <!-- Active Connection Status Bar -->
+    <section id="vpn-active-bar" class="vpn-connection-bar vpn-disconnected">
+      <div class="connection-status-info">
+        <div id="connection-dot" class="status-dot dot-off"></div>
+        <div>
+          <h3 id="vpn-status-title">VPN Отключен</h3>
+          <p id="vpn-status-desc">Трафик вашего компьютера идет напрямую через оператора связи.</p>
+        </div>
+      </div>
+      <button id="btn-vpn-disconnect" class="btn btn-danger hidden">
+        <span class="icon">🛑</span> Отключить VPN
+      </button>
+    </section>
+
+    <!-- Network & DPI Status Banner -->
+    <section id="dpi-banner" class="status-banner banner-info">
+      <div class="banner-icon">🌐</div>
+      <div class="banner-content">
+        <h3 id="dpi-title">Предполетная проверка сети не выполнена</h3>
+        <p id="dpi-desc">Нажмите "Проверить DPI / Белый список РФ", чтобы определить доступность сети.</p>
+      </div>
+      <div id="dpi-status-badge" class="badge badge-neutral">Ожидание</div>
+    </section>
+
+    <main class="main-content">
+      <!-- Left Panel: Subscription & Controls -->
+      <div class="panel panel-left">
+        <div class="panel-header">
+          <h2><span class="step-num">1</span> Импорт подписки & Ядро VPN</h2>
+        </div>
+
+        <div class="button-row">
+          <button id="btn-load-user-json" class="btn btn-accent" style="width: 100%;">
+            <span class="icon">📥</span> Загрузить мой serverjson.txt (Нидерланды)
+          </button>
+        </div>
+
+        <!-- Engine & TUN Stack Selectors -->
+        <div class="tun-stack-card">
+          <h3><span class="icon">⚙️</span> Движок исполнения (Core Engine):</h3>
+          <div class="form-group">
+            <select id="select-vpn-engine" class="select-input">
+              <option value="singbox">Sing-Box Core v1.13.14 (Рекомендуется для системного TUN)</option>
+              <option value="xray">Xray-Core v25.1.30 (VLESS Reality / Vision)</option>
+            </select>
+          </div>
+
+          <h3 style="margin-top: 6px;"><span class="icon">🛠️</span> Сетевой стек TUN Sing-Box:</h3>
+          <div class="form-group">
+            <select id="select-tun-stack" class="select-input">
+              <option value="gvisor">gVisor (Google Virtual TCP/IP Stack) — Защита от ТСПУ</option>
+              <option value="lwip">lwIP (Lightweight IP Stack) — Высокая скорость</option>
+              <option value="system">System / Wintun (Нативный драйвер ОС)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 4px;">
+          <label for="sub-url">URL подписки v2raytun / Happ:</label>
+          <div class="input-with-button">
+            <input type="text" id="sub-url" placeholder="https://example.com/api/v1/client/subscribe?token=..." />
+            <button id="btn-load-url" class="btn btn-primary">Загрузить</button>
+          </div>
+        </div>
+
+        <div class="form-divider"><span>или вставьте сырые ссылки (VLESS / VMess / Trojan / Hy2)</span></div>
+
+        <div class="form-group">
+          <textarea id="sub-raw" rows="3" placeholder="vless://uuid@host:port?security=reality&sni=google.com#Poland"></textarea>
+        </div>
+
+        <div class="button-row">
+          <button id="btn-parse-raw" class="btn btn-secondary">Парсить текст</button>
+          <button id="btn-demo-sub" class="btn btn-secondary">⚡ Демо-подписка</button>
+        </div>
+
+        <!-- Double Tunneling Section -->
+        <div class="chain-builder-card">
+          <h3><span class="icon">🔗</span> Подключение через Двойной Туннель</h3>
+          <p class="text-sm">Обход тотальных Белых списков РФ (Трафик: ПК ➔ Узел РФ ➔ Зарубеж):</p>
+          <div class="form-group" style="margin-top: 6px;">
+            <label>1. Реле-сервер (Допустимый IP в РФ):</label>
+            <select id="select-relay-node" class="select-input">
+              <option value="">-- Выберите узел в РФ --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>2. Зарубежный конечный узел:</label>
+            <select id="select-exit-node" class="select-input">
+              <option value="">-- Выберите зарубежный узел --</option>
+            </select>
+          </div>
+          <div class="button-row" style="margin-top: 6px;">
+            <button id="btn-test-chain" class="btn btn-secondary" style="flex:1">
+              <span class="icon">🔍</span> Тест
+            </button>
+            <button id="btn-connect-double" class="btn btn-primary" style="flex:2">
+              <span class="icon">⚡</span> Подключить Двойной TUN
+            </button>
+          </div>
+          <div id="chain-result" class="chain-result-box hidden"></div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Node List & Live IP Geo Card -->
+      <div class="panel panel-right">
+        <!-- Live IP GEO Card -->
+        <div class="ip-geo-card">
+          <div class="ip-geo-header">
+            <span class="icon">🌍</span> <strong>Мой Внешний IP и Геолокация ПК:</strong>
+            <button id="btn-refresh-ip" class="btn-sm btn-outline" style="margin-left: auto;">🔄 Обновить IP</button>
+          </div>
+          <div class="ip-geo-grid">
+            <div class="ip-geo-item">
+              <span class="ip-geo-label">Внешний IP:</span>
+              <span id="ip-val" class="ip-geo-value font-mono">Проверка...</span>
+            </div>
+            <div class="ip-geo-item">
+              <span class="ip-geo-label">Страна / Флаг:</span>
+              <span id="country-val" class="ip-geo-value">Проверка...</span>
+            </div>
+            <div class="ip-geo-item">
+              <span class="ip-geo-label">Город:</span>
+              <span id="city-val" class="ip-geo-value">Проверка...</span>
+            </div>
+            <div class="ip-geo-item">
+              <span class="ip-geo-label">Провайдер / ASN:</span>
+              <span id="isp-val" class="ip-geo-value">Проверка...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-header" style="margin-top: 10px;">
+          <h2><span class="step-num">2</span> Матрица тестов (TCP + TLS + HTTP URL Ping)</h2>
+          <div class="panel-controls">
+            <button id="btn-test-all" class="btn btn-success" disabled>
+              <span class="icon">▶</span> Тестировать все серверы
+            </button>
+            <button id="btn-export-best" class="btn btn-outline" disabled>
+              <span class="icon">💾</span> Скопировать лучший
+            </button>
+          </div>
+        </div>
+
+        <!-- Summary Statistics Bar -->
+        <div id="summary-bar" class="summary-bar hidden">
+          <div class="stat-card">
+            <span class="stat-value" id="stat-total">0</span>
+            <span class="stat-label">Всего серверов</span>
+          </div>
+          <div class="stat-card stat-success">
+            <span class="stat-value" id="stat-working">0</span>
+            <span class="stat-label">Работают (HTTP 204 OK)</span>
+          </div>
+          <div class="stat-card stat-danger">
+            <span class="stat-value" id="stat-failed">0</span>
+            <span class="stat-label">Заблокировано / Ошибка</span>
+          </div>
+          <div class="stat-card stat-primary">
+            <span class="stat-value" id="stat-best">--</span>
+            <span class="stat-label">Лучший сервер</span>
+          </div>
+        </div>
+
+        <!-- Node Table -->
+        <div class="table-container">
+          <table class="node-table">
+            <thead>
+              <tr>
+                <th>Название сервера</th>
+                <th>Протокол</th>
+                <th>TCP Пинг</th>
+                <th>TLS ALPN</th>
+                <th>HTTP URL Ping</th>
+                <th>Скорость YouTube</th>
+                <th>Балл</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody id="node-list-body">
+              <tr class="empty-row">
+                <td colspan="8">Загрузите подписку или нажмите "Загрузить мой serverjson.txt" для начала работы.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Live Process Log Drawer -->
+        <div class="logs-console-box">
+          <div class="logs-console-header">
+            <span>📋 Лог работы ядра VPN (Xray / Sing-Box Live Terminal Logs)</span>
+            <button id="btn-clear-logs" class="btn-sm btn-secondary">Очистить</button>
+          </div>
+          <div id="live-logs-body" class="logs-body">
+            <div class="log-entry text-dim">[SYSTEM] Ожидание действий пользователя...</div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Modal Drawer for Detailed Diagnostics -->
+    <div id="diag-modal" class="modal hidden">
+      <div class="modal-content glass-card">
+        <div class="modal-header">
+          <h3 id="modal-node-title">Подробный анализ сервера</h3>
+          <button id="modal-close" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-node-content">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
