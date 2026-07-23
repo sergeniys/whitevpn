@@ -1,11 +1,11 @@
 {
-  "name": "WhiteVPN Mobile",
-  "short_name": "WhiteVPN",
-  "description": "Высокоскоростной VPN клиент с защитой от ТСПУ и двойным туннелированием",
+  "name": "KartseVPN",
+  "short_name": "KartseVPN",
+  "description": "KartseVPN - Быстрый и защищенный VPN для Android и ПК",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0d1117",
-  "theme_color": "#1f6feb",
+  "background_color": "#0b0f19",
+  "theme_color": "#2563eb",
   "icons": [
     {
       "src": "https://img.icons8.com/fluency/192/000000/shield.png",

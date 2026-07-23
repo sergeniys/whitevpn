@@ -1298,6 +1298,7 @@ const server = http.createServer(async (req, res) => {
               { outbound: 'direct', ip_cidr: ['192.168.0.0/16', '10.0.0.0/8', '172.16.0.0/12'] },
               ...(bypassCidrs.length > 0 ? [{ outbound: 'direct', ip_cidr: bypassCidrs }] : []),
               { outbound: 'direct', process_name: ['xray.exe', 'sing-box.exe', 'xray', 'sing-box', 'happd.exe', 'Happ.exe'] },
+              { outbound: 'direct', domain_suffix: ['.ru', 'yandex.ru', 'gosuslugi.ru', 'sberbank.ru', 'vk.com', 'ok.ru', 'ozon.ru'] },
               { action: 'sniff' },
               { action: 'hijack-dns', protocol: 'dns' }
             ]

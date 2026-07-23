@@ -1,0 +1,9 @@
+{
+  "appId": "com.kartsevpn.app",
+  "appName": "KartseVPN",
+  "webDir": "public",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}

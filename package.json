@@ -1,7 +1,7 @@
 {
-  "name": "vpntest",
+  "name": "kartsevpn",
   "version": "1.0.0",
-  "description": "VPN Subscription Tester & DPI / TUN Diagnostic Suite",
+  "description": "KartseVPN - High Speed VPN Client for Android & Desktop",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
