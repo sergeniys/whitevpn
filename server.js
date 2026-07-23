@@ -1345,73 +1345,179 @@ const server = http.createServer(async (req, res) => {
     stopActiveVpn();
 
     const freePort = await getFreePort(20808);
-    const configPath = path.join(__dirname, `active_double_vpn_${Date.now()}.json`);
-    const relayOutbound = buildSingboxOutbound(relayNode, 'relay-rf');
-    const exitOutbound = buildSingboxOutbound(exitNode, 'exit-overseas', 'relay-rf');
     const chosenTunStack = tunStack || 'gvisor';
     const adminState = isRunningAsAdmin();
 
-    addLogLine('INFO', `Запуск Двойного VPN соединения (Admin: ${adminState}, Реле: ${relayNode.name}, Exit: ${exitNode.name})`);
+    addLogLine('INFO', `Запуск Двойного VPN соединения через Xray Chaining (Admin: ${adminState}, Реле: ${relayNode.name}, Exit: ${exitNode.name})`);
 
-    const inbounds = [
-      {
-        type: 'mixed',
-        tag: 'mixed-in',
-        listen: '127.0.0.1',
-        listen_port: freePort,
-        set_system_proxy: true
-      }
-    ];
-
-    if (adminState) {
-      inbounds.unshift({
-        type: 'tun',
-        tag: 'tun-in',
-        interface_name: 'singbox-tun0',
-        address: ['172.19.0.1/30'],
-        auto_route: true,
-        strict_route: true,
-        stack: chosenTunStack
-      });
-    }
-
-    const singboxConfig = {
-      log: { level: 'info' },
+    const xrayConfig = {
+      log: { loglevel: 'warning' },
       dns: {
-        servers: [
-          { tag: 'remote-dns', type: 'udp', server: '1.1.1.1' }
-        ]
+        servers: ['https://1.1.1.1/dns-query', '8.8.8.8'],
+        queryStrategy: 'UseIPv4'
       },
-      inbounds: inbounds,
-      route: {
-        auto_detect_interface: true,
+      inbounds: [
+        {
+          listen: '127.0.0.1',
+          port: freePort,
+          protocol: 'socks',
+          settings: { auth: 'noauth', udp: true },
+          sniffing: { destOverride: ['http', 'tls', 'quic'], enabled: true },
+          tag: 'socks'
+        },
+        {
+          listen: '127.0.0.1',
+          port: freePort + 1,
+          protocol: 'http',
+          sniffing: { destOverride: ['http', 'tls', 'quic'], enabled: true },
+          tag: 'http'
+        }
+      ],
+      outbounds: [
+        {
+          protocol: (exitNode.protocol || 'vless').toLowerCase(),
+          tag: 'proxy',
+          proxySettings: {
+            tag: 'relay'
+          },
+          settings: {
+            vnext: [
+              {
+                address: exitNode.host || exitNode.server,
+                port: exitNode.port,
+                users: [
+                  {
+                    id: exitNode.uuid || '00000000-0000-0000-0000-000000000000',
+                    encryption: 'none',
+                    flow: exitNode.flow || 'xtls-rprx-vision',
+                    security: 'auto'
+                  }
+                ]
+              }
+            ]
+          },
+          streamSettings: {
+            network: 'tcp',
+            security: exitNode.security || 'reality',
+            realitySettings: {
+              fingerprint: exitNode.fp || exitNode.fingerprint || 'chrome',
+              publicKey: exitNode.pbk || '',
+              serverName: exitNode.sni || exitNode.host || exitNode.server,
+              shortId: exitNode.sid || ''
+            }
+          }
+        },
+        {
+          protocol: (relayNode.protocol || 'vless').toLowerCase(),
+          tag: 'relay',
+          settings: {
+            vnext: [
+              {
+                address: relayNode.host || relayNode.server,
+                port: relayNode.port,
+                users: [
+                  {
+                    id: relayNode.uuid || '00000000-0000-0000-0000-000000000000',
+                    encryption: 'none',
+                    flow: relayNode.flow || 'xtls-rprx-vision',
+                    security: 'auto'
+                  }
+                ]
+              }
+            ]
+          },
+          streamSettings: {
+            network: 'tcp',
+            security: relayNode.security || 'reality',
+            realitySettings: {
+              fingerprint: relayNode.fp || relayNode.fingerprint || 'chrome',
+              publicKey: relayNode.pbk || '',
+              serverName: relayNode.sni || relayNode.host || relayNode.server,
+              shortId: relayNode.sid || ''
+            }
+          }
+        },
+        { protocol: 'blackhole', tag: 'block' }
+      ],
+      routing: {
+        domainStrategy: 'IPIfNonMatch',
         rules: [
-          { outbound: 'direct', process_name: ['xray.exe', 'sing-box.exe', 'xray', 'sing-box', 'happd.exe', 'Happ.exe'] },
-          { action: 'sniff' },
-          { action: 'hijack-dns', protocol: 'dns' }
+          { type: 'field', port: 443, network: 'udp', outboundTag: 'block' }
         ]
-      },
-      outbounds: [exitOutbound, relayOutbound, { type: 'direct', tag: 'direct' }]
+      }
     };
 
-    fs.writeFileSync(configPath, JSON.stringify(singboxConfig, null, 2), 'utf8');
+    const xrayConfigPath = path.join(__dirname, `active_double_xray_${Date.now()}.json`);
+    fs.writeFileSync(xrayConfigPath, JSON.stringify(xrayConfig, null, 2), 'utf8');
 
     try {
-      const doubleProc = spawn(SINGBOX_BIN, ['run', '-c', configPath]);
-      activeVpnProcesses.push(doubleProc);
-      activeVpnConfigPaths.push(configPath);
+      const xrayProc = spawn(XRAY_BIN, ['run', '-c', xrayConfigPath]);
+      activeVpnProcesses.push(xrayProc);
+      activeVpnConfigPaths.push(xrayConfigPath);
 
-      doubleProc.stdout.on('data', data => addLogLine('DOUBLE-STDOUT', data.toString().trim()));
-      doubleProc.stderr.on('data', data => addLogLine('DOUBLE-STDERR', data.toString().trim()));
+      xrayProc.stdout.on('data', data => addLogLine('DOUBLE-XRAY-STDOUT', data.toString().trim()));
+      xrayProc.stderr.on('data', data => addLogLine('DOUBLE-XRAY-STDERR', data.toString().trim()));
 
-      setWindowsSystemProxy(true, `127.0.0.1:${freePort}`, `127.0.0.1:${freePort}`);
+      if (adminState && fs.existsSync(SINGBOX_BIN)) {
+        const singboxTunConfig = {
+          log: { level: 'info' },
+          dns: {
+            servers: [
+              { tag: 'remote-dns', type: 'udp', server: '1.1.1.1' }
+            ]
+          },
+          inbounds: [
+            {
+              type: 'tun',
+              tag: 'tun-in',
+              interface_name: 'singbox-tun0',
+              address: ['172.19.0.1/30'],
+              auto_route: true,
+              strict_route: true,
+              stack: chosenTunStack
+            }
+          ],
+          outbounds: [
+            {
+              type: 'socks',
+              tag: 'proxy',
+              server: '127.0.0.1',
+              server_port: freePort,
+              udp_fragment: true
+            },
+            {
+              type: 'direct',
+              tag: 'direct'
+            }
+          ],
+          route: {
+            auto_detect_interface: true,
+            rules: [
+              { outbound: 'direct', process_name: ['xray.exe', 'sing-box.exe', 'xray', 'sing-box', 'happd.exe', 'Happ.exe'] },
+              { action: 'sniff' },
+              { action: 'hijack-dns', protocol: 'dns' }
+            ]
+          }
+        };
+        const singboxTunPath = path.join(__dirname, `active_double_tun_${Date.now()}.json`);
+        fs.writeFileSync(singboxTunPath, JSON.stringify(singboxTunConfig, null, 2), 'utf8');
+        const singboxProc = spawn(SINGBOX_BIN, ['run', '-c', singboxTunPath]);
+        activeVpnProcesses.push(singboxProc);
+        activeVpnConfigPaths.push(singboxTunPath);
+
+        singboxProc.stdout.on('data', data => addLogLine('DOUBLE-TUN-STDOUT', data.toString().trim()));
+        singboxProc.stderr.on('data', data => addLogLine('DOUBLE-TUN-STDERR', data.toString().trim()));
+        addLogLine('SYSTEM', '✅ Wintun адаптер (singbox-tun0) успешно запущен для Двойного VPN!');
+      }
+
+      setWindowsSystemProxy(true, `http=127.0.0.1:${freePort + 1};https=127.0.0.1:${freePort + 1};socks=127.0.0.1:${freePort}`);
 
       activeVpnDetails = {
         connected: true,
         type: 'DOUBLE',
         relayName: relayNode.name,
         exitName: exitNode.name,
-        engine: 'singbox',
+        engine: 'xray',
         tunStack: chosenTunStack,
         socksPort: freePort,
         liveMbps: 46.8,
