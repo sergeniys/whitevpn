@@ -1296,6 +1296,7 @@ const server = http.createServer(async (req, res) => {
           route: {
             auto_detect_interface: true,
             rules: [
+              { outbound: 'direct', ip_cidr: ['192.168.0.0/16', '10.0.0.0/8', '172.16.0.0/12'] },
               ...(bypassCidrs.length > 0 ? [{ outbound: 'direct', ip_cidr: bypassCidrs }] : []),
               { outbound: 'direct', process_name: ['xray.exe', 'sing-box.exe', 'xray', 'sing-box', 'happd.exe', 'Happ.exe'] },
               { action: 'sniff' },
@@ -1501,6 +1502,7 @@ const server = http.createServer(async (req, res) => {
           route: {
             auto_detect_interface: true,
             rules: [
+              { outbound: 'direct', ip_cidr: ['192.168.0.0/16', '10.0.0.0/8', '172.16.0.0/12'] },
               ...(bypassCidrs.length > 0 ? [{ outbound: 'direct', ip_cidr: bypassCidrs }] : []),
               { outbound: 'direct', process_name: ['xray.exe', 'sing-box.exe', 'xray', 'sing-box', 'happd.exe', 'Happ.exe'] },
               { action: 'sniff' },

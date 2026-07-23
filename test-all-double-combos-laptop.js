@@ -33,6 +33,16 @@ function runSshCmd(conn, cmdString) {
   });
 }
 
+function uploadFile(sftp, localPath, remotePath) {
+  return new Promise((resolve, reject) => {
+    const content = fs.readFileSync(localPath);
+    sftp.writeFile(remotePath, content, (err) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
+}
+
 function httpPost(urlPath, payloadObject) {
   return new Promise((resolve, reject) => {
     const dataStr = JSON.stringify(payloadObject || {});
@@ -99,7 +109,7 @@ function parseLink(link) {
   };
 }
 
-const allParsedNodes = rawLinks.map(parseLink);
+const allParsedNodes = rawLinks.map(parseLink).filter(n => /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(n.host));
 
 const relayNodes = allParsedNodes.filter(n => n.name.includes('🇷🇺') || n.name.includes('Белые списки') || n.name.includes('YouTube'));
 const exitNodes = allParsedNodes.filter(n => !n.name.includes('🇷🇺') && !n.name.includes('Белые списки') && !n.name.includes('YouTube'));
@@ -108,10 +118,23 @@ async function testAllCombos() {
   console.log('====================================================');
   console.log('🔍 ТЕСТИРОВАНИЕ ВСЕХ КОМБИНАЦИЙ ДВОЙНОГО VPN В ПОДПИСКЕ');
   console.log('====================================================');
-  console.log(`Найдено реле-узлов (РФ): ${relayNodes.length}`);
-  console.log(`Найдено зарубежных узлов (Exit): ${exitNodes.length}`);
+  console.log(`Отфильтровано IP реле-узлов (РФ): ${relayNodes.length}`);
+  console.log(`Отфильтровано IP зарубежных узлов (Exit): ${exitNodes.length}`);
 
   const controlConn = await createSshClient();
+  
+  console.log('\n1. Передача обновленного server.js на ноутбук...');
+  await new Promise((resolve, reject) => {
+    controlConn.sftp(async (err, sftp) => {
+      if (err) return reject(err);
+      try {
+        await uploadFile(sftp, 'server.js', 'C:/Users/sergey/whitevpn/server.js');
+        resolve();
+      } catch (e) { reject(e); }
+    });
+  });
+
+  console.log('\n2. Перезапуск процесса Node на ноутбуке...');
   await runSshCmd(controlConn, 'powershell -Command "Stop-Process -Name node -Force -ErrorAction SilentlyContinue"');
   await new Promise(r => setTimeout(r, 1500));
 
@@ -139,7 +162,7 @@ async function testAllCombos() {
           tunStack: 'gvisor'
         });
 
-        await new Promise(r => setTimeout(r, 4500));
+        await new Promise(r => setTimeout(r, 4000));
 
         const ipRes = await httpGet('/api/vpn/ip-check');
         const isSuccess = ipRes && ipRes.ip && ipRes.ip !== '127.0.0.1' && ipRes.countryCode !== 'RU';
@@ -150,8 +173,10 @@ async function testAllCombos() {
         matrixResults.push({
           relayName: relay.name,
           relayHost: relay.host,
+          relayPort: relay.port,
           exitName: exit.name,
           exitHost: exit.host,
+          exitPort: exit.port,
           success: isSuccess,
           resultIp: ipRes.ip,
           country: ipRes.country
@@ -161,8 +186,10 @@ async function testAllCombos() {
         matrixResults.push({
           relayName: relay.name,
           relayHost: relay.host,
+          relayPort: relay.port,
           exitName: exit.name,
           exitHost: exit.host,
+          exitPort: exit.port,
           success: false,
           error: e.message
         });
@@ -182,7 +209,7 @@ async function testAllCombos() {
   console.log(`Успешно работающих: ${working.length}\n`);
 
   working.forEach((w, i) => {
-    console.log(`${i + 1}. ✅ [РЕЛЕ: ${w.relayName} (${w.relayHost})] ➔ [EXIT: ${w.exitName} (${w.exitHost})] => Выходной IP: ${w.resultIp} (${w.country})`);
+    console.log(`${i + 1}. ✅ [РЕЛЕ: ${w.relayName} (${w.relayHost}:${w.relayPort})] ➔ [EXIT: ${w.exitName} (${w.exitHost}:${w.exitPort})] => Выходной IP: ${w.resultIp} (${w.country})`);
   });
 }
 
