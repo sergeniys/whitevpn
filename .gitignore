@@ -1,6 +1,9 @@
 node_modules/
-vpn_activity.log
-active_vpn_*.json
+*.exe
+*.zip
+*.log
+active_*.json
 temp_*.json
-temp_config_*.json
-temp_chain_*.json
+test_*.json
+*.txt
+.DS_Store
