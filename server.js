@@ -65,8 +65,8 @@ function isRunningAsAdmin() {
   }
 }
 
-let activeVpnProcess = null;
-let activeVpnConfigPath = null;
+let activeVpnProcesses = [];
+let activeVpnConfigPaths = [];
 let activeVpnDetails = {
   connected: false,
   type: 'NONE',
@@ -584,18 +584,20 @@ async function runChainedDoubleTunnelTest(relayNode, exitNode) {
 }
 
 function stopActiveVpn() {
-  if (activeVpnProcess) {
-    try {
-      activeVpnProcess.kill();
-      addLogLine('INFO', 'Активный процесс VPN успешно остановлен.');
-    } catch (e) {}
-    activeVpnProcess = null;
+  if (activeVpnProcesses.length > 0) {
+    for (const proc of activeVpnProcesses) {
+      try { proc.kill(); } catch (e) {}
+    }
+    activeVpnProcesses = [];
+    addLogLine('INFO', 'Активные процессы VPN успешно остановлены.');
   }
   setWindowsSystemProxy(false);
-  if (activeVpnConfigPath && fs.existsSync(activeVpnConfigPath)) {
-    try { fs.unlinkSync(activeVpnConfigPath); } catch (e) {}
+  for (const cPath of activeVpnConfigPaths) {
+    if (fs.existsSync(cPath)) {
+      try { fs.unlinkSync(cPath); } catch (e) {}
+    }
   }
-  activeVpnConfigPath = null;
+  activeVpnConfigPaths = [];
   activeVpnDetails = {
     connected: false,
     type: 'NONE',
@@ -1161,15 +1163,23 @@ const server = http.createServer(async (req, res) => {
         },
         inbounds: inbounds,
         route: {
+          auto_detect_interface: true,
           rules: [
+            { outbound: 'direct', process_name: ['xray.exe', 'sing-box.exe', 'xray', 'sing-box', 'happd.exe', 'Happ.exe'] },
             { action: 'sniff' },
-            { port: 443, network: 'udp', action: 'reject' }
+            { action: 'hijack-dns', protocol: 'dns' }
           ]
         },
         outbounds: [outbound]
       };
-      fs.writeFileSync(configPath, JSON.stringify(singboxConfig, null, 2), 'utf8');
-      activeVpnProcess = spawn(SINGBOX_BIN, ['run', '-c', configPath]);
+      const sbConfigPath = path.join(__dirname, `active_vpn_sb_${Date.now()}.json`);
+      fs.writeFileSync(sbConfigPath, JSON.stringify(singboxConfig, null, 2), 'utf8');
+      const sbProc = spawn(SINGBOX_BIN, ['run', '-c', sbConfigPath]);
+      activeVpnProcesses.push(sbProc);
+      activeVpnConfigPaths.push(sbConfigPath);
+
+      sbProc.stdout.on('data', data => addLogLine('VPN-STDOUT', data.toString().trim()));
+      sbProc.stderr.on('data', data => addLogLine('VPN-STDERR', data.toString().trim()));
 
       httpProxyAddress = `127.0.0.1:${freePort}`;
       socksProxyAddress = `127.0.0.1:${freePort}`;
@@ -1199,12 +1209,12 @@ const server = http.createServer(async (req, res) => {
         ],
         outbounds: [
           {
-            protocol: node.protocol.toLowerCase(),
+            protocol: (node.protocol || 'vless').toLowerCase(),
             tag: 'proxy',
             settings: {
               vnext: [
                 {
-                  address: node.host,
+                  address: node.host || node.server,
                   port: node.port,
                   users: [
                     {
@@ -1221,9 +1231,9 @@ const server = http.createServer(async (req, res) => {
               network: 'tcp',
               security: node.security || 'reality',
               realitySettings: {
-                fingerprint: node.fp || 'chrome',
+                fingerprint: node.fp || node.fingerprint || 'chrome',
                 publicKey: node.pbk || '',
-                serverName: node.sni || node.host,
+                serverName: node.sni || node.host || node.server,
                 shortId: node.sid || ''
               }
             }
@@ -1237,17 +1247,66 @@ const server = http.createServer(async (req, res) => {
           ]
         }
       };
-      fs.writeFileSync(configPath, JSON.stringify(xrayConfig, null, 2), 'utf8');
-      activeVpnProcess = spawn(XRAY_BIN, ['run', '-c', configPath]);
+      const xrayConfigPath = path.join(__dirname, `active_vpn_xray_${Date.now()}.json`);
+      fs.writeFileSync(xrayConfigPath, JSON.stringify(xrayConfig, null, 2), 'utf8');
+      const xrayProc = spawn(XRAY_BIN, ['run', '-c', xrayConfigPath]);
+      activeVpnProcesses.push(xrayProc);
+      activeVpnConfigPaths.push(xrayConfigPath);
+
+      xrayProc.stdout.on('data', data => addLogLine('XRAY-STDOUT', data.toString().trim()));
+      xrayProc.stderr.on('data', data => addLogLine('XRAY-STDERR', data.toString().trim()));
+
+      if (adminState && fs.existsSync(SINGBOX_BIN)) {
+        const singboxTunConfig = {
+          log: { level: 'info' },
+          dns: {
+            servers: [
+              { tag: 'remote-dns', type: 'udp', server: '1.1.1.1' }
+            ]
+          },
+          inbounds: [
+            {
+              type: 'tun',
+              tag: 'tun-in',
+              interface_name: 'singbox-tun0',
+              address: ['172.19.0.1/30'],
+              auto_route: true,
+              strict_route: true,
+              stack: chosenTunStack
+            }
+          ],
+          outbounds: [
+            {
+              type: 'socks',
+              tag: 'proxy',
+              server: '127.0.0.1',
+              server_port: freePort,
+              udp_fragment: true
+            }
+          ],
+          route: {
+            auto_detect_interface: true,
+            rules: [
+              { outbound: 'direct', process_name: ['xray.exe', 'sing-box.exe', 'xray', 'sing-box', 'happd.exe', 'Happ.exe'] },
+              { action: 'sniff' },
+              { action: 'hijack-dns', protocol: 'dns' }
+            ]
+          }
+        };
+        const singboxTunPath = path.join(__dirname, `active_vpn_tun_${Date.now()}.json`);
+        fs.writeFileSync(singboxTunPath, JSON.stringify(singboxTunConfig, null, 2), 'utf8');
+        const singboxProc = spawn(SINGBOX_BIN, ['run', '-c', singboxTunPath]);
+        activeVpnProcesses.push(singboxProc);
+        activeVpnConfigPaths.push(singboxTunPath);
+
+        singboxProc.stdout.on('data', data => addLogLine('TUN-STDOUT', data.toString().trim()));
+        singboxProc.stderr.on('data', data => addLogLine('TUN-STDERR', data.toString().trim()));
+        addLogLine('SYSTEM', '✅ Wintun адаптер (singbox-tun0) успешно запущен в связке с ядром Xray!');
+      }
 
       httpProxyAddress = `127.0.0.1:${freePort + 1}`;
       socksProxyAddress = `127.0.0.1:${freePort}`;
     }
-
-    activeVpnConfigPath = configPath;
-
-    activeVpnProcess.stdout.on('data', data => addLogLine('VPN-STDOUT', data.toString().trim()));
-    activeVpnProcess.stderr.on('data', data => addLogLine('VPN-STDERR', data.toString().trim()));
 
     setWindowsSystemProxy(true, httpProxyAddress, socksProxyAddress);
 

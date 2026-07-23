@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "cors": "^2.8.6",
-    "express": "^4.22.2"
+    "express": "^4.22.2",
+    "ssh2": "^1.17.0"
   }
 }
