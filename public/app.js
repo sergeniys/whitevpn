@@ -5,7 +5,35 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentVpnState = { connected: false, type: 'NONE' };
   let isDoubleMode = false;
 
-  // Navigation Tabs
+  // App List Database for Split Tunneling
+  const APP_DATABASE = [
+    { name: 'Яндекс Браузер', pkg: 'com.yandex.browser', icon: '🌐' },
+    { name: 'Сбербанк Онлайн', pkg: 'ru.sberbankmobile', icon: '💳' },
+    { name: 'Госуслуги', pkg: 'ru.gosuslugi.portal', icon: '🏛️' },
+    { name: 'Telegram', pkg: 'org.telegram.messenger', icon: '✈️' },
+    { name: 'WhatsApp', pkg: 'com.whatsapp', icon: '💬' },
+    { name: 'ВКонтакте', pkg: 'com.vkontakte.android', icon: '💙' },
+    { name: 'ЯндексGo / Такси', pkg: 'ru.yandex.ytaxi', icon: '🚕' },
+    { name: 'Wildberries', pkg: 'ru.wildberries.work', icon: '🛍️' },
+    { name: 'Ozon', pkg: 'ru.ozon.app', icon: '📦' },
+    { name: 'Т-Банк / Тинькофф', pkg: 'com.iamtinkoff.mb', icon: '🏦' },
+    { name: 'Альфа-Банк', pkg: 'ru.alfabank.mobile.android', icon: '🔴' },
+    { name: 'ВТБ Онлайн', pkg: 'ru.vtb24.mobilebanking.android', icon: '🔵' },
+    { name: 'Яндекс Музыка', pkg: 'ru.yandex.music', icon: '🎵' },
+    { name: 'Кинопоиск', pkg: 'ru.kinopoisk', icon: '🎬' },
+    { name: 'Авито', pkg: 'com.avito.android', icon: '🛍️' },
+    { name: 'Steam', pkg: 'com.valvesoftware.android.steam', icon: '🎮' },
+    { name: 'Discord', pkg: 'com.discord', icon: '🎮' },
+    { name: 'TikTok', pkg: 'com.zhiliaoapp.musically', icon: '🎵' },
+    { name: 'Instagram', pkg: 'com.instagram.android', icon: '📸' },
+    { name: 'Google Chrome', pkg: 'com.android.chrome', icon: '🌐' },
+    { name: 'YouTube', pkg: 'com.google.android.youtube', icon: '📺' },
+    { name: '2ГИС Карта', pkg: 'ru.dublgis.dgismobile', icon: '🗺️' }
+  ];
+
+  let selectedAppPackages = new Set(['com.yandex.browser', 'ru.sberbankmobile', 'ru.gosuslugi.portal']);
+
+  // Tabs
   const navTabs = document.querySelectorAll('.nav-tab');
   const tabContents = document.querySelectorAll('.tab-content');
 
@@ -50,15 +78,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnTestRelaySuitability = document.getElementById('btn-test-relay-suitability');
   const relayTestResult = document.getElementById('relay-test-result');
 
-  // Routing
+  // Routing & Apps
+  const appsContainer = document.getElementById('apps-container');
+  const appSearchInput = document.getElementById('app-search-input');
+  const btnSelectAllApps = document.getElementById('btn-select-all-apps');
+  const btnClearApps = document.getElementById('btn-clear-apps');
   const routePresetRu = document.getElementById('route-preset-ru');
   const customDirectDomains = document.getElementById('custom-direct-domains');
-  const customAppPackages = document.getElementById('custom-app-packages');
   const btnSaveRouting = document.getElementById('btn-save-routing');
 
   // Servers Matrix
   const btnTestAll = document.getElementById('btn-test-all');
-  const btnExportBest = document.getElementById('btn-export-best');
   const summaryBar = document.getElementById('summary-bar');
   const statTotal = document.getElementById('stat-total');
   const statWorking = document.getElementById('stat-working');
@@ -66,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const statBest = document.getElementById('stat-best');
   const nodeListBody = document.getElementById('node-list-body');
 
-  // Tab Navigation
+  // Navigation
   navTabs.forEach(tab => {
     tab.addEventListener('click', () => {
       navTabs.forEach(t => t.classList.remove('active'));
@@ -78,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Single vs Double Mode Switch
+  // Mode Switch
   modeBtnSingle.addEventListener('click', () => {
     isDoubleMode = false;
     modeBtnSingle.classList.add('active');
@@ -93,7 +123,62 @@ document.addEventListener('DOMContentLoaded', () => {
     doubleVpnControls.classList.remove('hidden');
   });
 
-  // DPI Check Handler
+  // Render Apps List
+  function renderAppList(filterText = '') {
+    if (!appsContainer) return;
+    appsContainer.innerHTML = '';
+    const query = filterText.toLowerCase().trim();
+
+    const filtered = APP_DATABASE.filter(app => 
+      app.name.toLowerCase().includes(query) || app.pkg.toLowerCase().includes(query)
+    );
+
+    if (filtered.length === 0) {
+      appsContainer.innerHTML = '<div class="text-dim" style="grid-column: span 2; font-size: 11px; padding: 8px;">Приложений не найдено.</div>';
+      return;
+    }
+
+    filtered.forEach(app => {
+      const label = document.createElement('label');
+      label.className = 'app-chip';
+      const isChecked = selectedAppPackages.has(app.pkg);
+
+      label.innerHTML = `
+        <input type="checkbox" class="app-checkbox" value="${app.pkg}" ${isChecked ? 'checked' : ''}>
+        <span>${app.icon} ${app.name}</span>
+      `;
+
+      const cb = label.querySelector('input');
+      cb.addEventListener('change', (e) => {
+        if (e.target.checked) selectedAppPackages.add(app.pkg);
+        else selectedAppPackages.delete(app.pkg);
+      });
+
+      appsContainer.appendChild(label);
+    });
+  }
+
+  if (appSearchInput) {
+    appSearchInput.addEventListener('input', (e) => renderAppList(e.target.value));
+  }
+
+  if (btnSelectAllApps) {
+    btnSelectAllApps.addEventListener('click', () => {
+      APP_DATABASE.forEach(app => selectedAppPackages.add(app.pkg));
+      renderAppList(appSearchInput ? appSearchInput.value : '');
+    });
+  }
+
+  if (btnClearApps) {
+    btnClearApps.addEventListener('click', () => {
+      selectedAppPackages.clear();
+      renderAppList(appSearchInput ? appSearchInput.value : '');
+    });
+  }
+
+  renderAppList();
+
+  // DPI Check
   if (btnDpiCheck) {
     btnDpiCheck.addEventListener('click', checkDpiStatus);
   }
@@ -107,7 +192,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const res = await fetch('/api/check-dpi');
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); }
+      catch (e) {
+        dpiBanner.className = 'status-banner banner-danger';
+        dpiTitle.textContent = 'Ошибка ответа сети';
+        dpiDesc.textContent = 'Сервер вернул сбойный ответ. Проверьте соединение с интернетом.';
+        dpiStatusBadge.className = 'badge badge-danger';
+        dpiStatusBadge.textContent = 'Сбой';
+        return;
+      }
+
       dpiDesc.textContent = data.message;
 
       if (data.state === 'NORMAL') {
@@ -138,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Init
+  // Init Status
   checkVpnStatus();
   refreshIpLocation();
   startSpeedMonitor();
@@ -151,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = await res.text();
         let data;
         try { data = JSON.parse(text); }
-        catch (err) { return alert('Сервер вернул неверный ответ: ' + text.substring(0, 80)); }
+        catch (err) { return alert('Ошибка загрузки локальных серверов'); }
 
         if (data.success && data.nodes) {
           loadedNodes = data.nodes;
@@ -161,7 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
           alert('Не удалось загрузить serverjson.txt: ' + (data.error || 'ошибка'));
         }
       } catch (e) {
-        alert('Ошибка загрузки: ' + e.message);
+        alert('Ошибка: ' + e.message);
       }
     });
   }
@@ -184,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
           data = JSON.parse(text);
         } catch (err) {
-          return alert('Ошибка ответа сервера (Получен HTML/Неверный ответ): ' + text.substring(0, 100));
+          return alert('Ошибка сети: неверный ответ сервера подписки.');
         }
 
         if (data.success && data.nodes) {
@@ -192,10 +288,10 @@ document.addEventListener('DOMContentLoaded', () => {
           renderNodeLists();
           alert(`Успешно загружено ${loadedNodes.length} серверов!`);
         } else {
-          alert('Ошибка загрузки подписки: ' + (data.error || 'Неверный формат ответа'));
+          alert('Ошибка подписки: ' + (data.error || 'Неверный ответ подписки'));
         }
       } catch (e) {
-        alert('Ошибка сети при загрузке: ' + e.message);
+        alert('Ошибка сети: ' + e.message);
       }
     });
   }
@@ -215,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = await res.text();
         let data;
         try { data = JSON.parse(text); }
-        catch (err) { return alert('Ошибка формата ответа'); }
+        catch (err) { return alert('Ошибка формата ссылок'); }
 
         if (data.success && data.nodes) {
           loadedNodes = data.nodes;
@@ -232,11 +328,11 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnTestRelaySuitability) {
     btnTestRelaySuitability.addEventListener('click', async () => {
       const idx = selectRelayTestNode.value;
-      if (idx === '' || !loadedNodes[idx]) return alert('Выберите сервер для проверки!');
+      if (idx === '' || !loadedNodes[idx]) return alert('Выберите сервер из списка!');
 
       relayTestResult.className = 'chain-result-box';
       relayTestResult.classList.remove('hidden');
-      relayTestResult.textContent = '⌛ Проверка способности сервера к Двойному VPN (транзитное проксирование)...';
+      relayTestResult.textContent = '⌛ Проверка способности к Двойному VPN (транзитное проксирование)...';
 
       try {
         const res = await fetch('/api/test-relay-suitability', {
@@ -244,7 +340,8 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ relayNode: loadedNodes[idx] })
         });
-        const data = await res.json();
+        const text = await res.text();
+        let data = JSON.parse(text);
         relayTestResult.textContent = data.message;
         if (data.isSuitable) {
           relayTestResult.style.borderColor = 'var(--accent-emerald)';
@@ -259,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Power Connect Button
+  // Power Button Connect
   btnPowerConnect.addEventListener('click', async () => {
     if (currentVpnState.connected) {
       btnPowerConnect.disabled = true;
@@ -341,16 +438,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Save Routing Button
   if (btnSaveRouting) {
     btnSaveRouting.addEventListener('click', () => {
-      const selectedApps = [];
-      document.querySelectorAll('.app-checkbox:checked').forEach(cb => selectedApps.push(cb.value));
-      const customApps = customAppPackages.value.trim();
-      const customDomains = customDirectDomains.value.trim();
-
-      alert(`Правила обхода сохранены!\nВыбрано приложений: ${selectedApps.length}\nПрямой доступ активен для выбранных сервисов.`);
+      alert(`Правила прямого обхода сохранены!\nВыбрано приложений: ${selectedAppPackages.size}\nПрямой доступ активен.`);
     });
   }
 
-  // Full Matrix Test All Button
+  // Test All Nodes
   if (btnTestAll) {
     btnTestAll.addEventListener('click', testAllNodesMatrix);
   }

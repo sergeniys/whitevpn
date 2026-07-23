@@ -197,55 +197,38 @@
       </div>
     </section>
 
-    <!-- TAB 3: ROUTING & PER-APP SPLIT TUNNELING -->
+    <!-- TAB 3: ROUTING & PER-APP SPLIT TUNNELING WITH SEARCH -->
     <section id="tab-routing" class="tab-content">
       <div class="card">
         <div class="card-header">
           <span class="icon">🔀</span>
-          <h2>Умная маршрутизация & Исключения приложений</h2>
+          <h2>Умное разделение трафика (Split Tunneling)</h2>
         </div>
         <p class="text-sm" style="color: var(--text-dim);">
-          Выберите приложения на телефоне и домены, которые будут работать <strong>НАПРЯМУЮ (без VPN)</strong>:
+          Выберите приложения и домены, которые будут работать <strong>НАПРЯМУЮ (без VPN)</strong>:
         </p>
 
-        <!-- Per-App Split Tunneling for Android -->
-        <div style="margin-top: 10px;">
-          <h3 style="font-size: 12px; color: var(--accent-cyan); margin-bottom: 6px;">📱 Исключить приложения на телефоне:</h3>
-          <div class="app-selection-grid">
-            <label class="app-chip">
-              <input type="checkbox" class="app-checkbox" value="com.yandex.browser">
-              <span>🌐 Яндекс Браузер</span>
-            </label>
-            <label class="app-chip">
-              <input type="checkbox" class="app-checkbox" value="ru.sberbankmobile">
-              <span>💳 Сбербанк Онлайн</span>
-            </label>
-            <label class="app-chip">
-              <input type="checkbox" class="app-checkbox" value="ru.gosuslugi.portal">
-              <span>🏛️ Госуслуги</span>
-            </label>
-            <label class="app-chip">
-              <input type="checkbox" class="app-checkbox" value="org.telegram.messenger">
-              <span>✈️ Telegram</span>
-            </label>
-            <label class="app-chip">
-              <input type="checkbox" class="app-checkbox" value="com.whatsapp">
-              <span>💬 WhatsApp</span>
-            </label>
-            <label class="app-chip">
-              <input type="checkbox" class="app-checkbox" value="com.vkontakte.android">
-              <span>💙 ВКонтакте</span>
-            </label>
+        <!-- Search & App Picker -->
+        <div style="margin-top: 8px;">
+          <div class="card-header-row" style="margin-bottom: 6px;">
+            <h3 style="font-size: 12px; color: var(--accent-cyan);">📱 Выбор приложений на телефоне:</h3>
+            <div class="button-row">
+              <button id="btn-select-all-apps" class="btn btn-outline btn-sm">Выбрать все</button>
+              <button id="btn-clear-apps" class="btn btn-outline btn-sm">Сброс</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <input type="text" id="app-search-input" placeholder="🔍 Поиск приложения (Яндекс, Сбер, Telegram, Steam...)" />
+          </div>
+
+          <div id="apps-container" class="app-selection-grid" style="margin-top: 8px;">
+            <!-- Apps rendered dynamically -->
           </div>
         </div>
 
-        <div class="form-group" style="margin-top: 10px;">
-          <label for="custom-app-packages">Пакеты других приложений (через запятую):</label>
-          <input type="text" id="custom-app-packages" placeholder="com.example.app, com.banking.app" />
-        </div>
-
-        <!-- Web Domain Bypass -->
-        <div class="routing-presets-group" style="margin-top: 10px;">
+        <!-- Web Domain Bypass Presets -->
+        <div class="routing-presets-group" style="margin-top: 12px;">
           <label class="checkbox-card">
             <input type="checkbox" id="route-preset-ru" checked>
             <div class="checkbox-info">
@@ -256,7 +239,7 @@
         </div>
 
         <div class="form-group" style="margin-top: 8px;">
-          <label for="custom-direct-domains">Свои домены напрямую:</label>
+          <label for="custom-direct-domains">Свои домены напрямую (через запятую):</label>
           <textarea id="custom-direct-domains" rows="2" placeholder="vk.com, ok.ru, sberbank.ru"></textarea>
         </div>
 

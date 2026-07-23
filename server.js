@@ -876,7 +876,10 @@ function parseUserServerJson() {
 
 const server = http.createServer(async (req, res) => {
   const reqUrl = url.parse(req.url, true);
-  const pathname = reqUrl.pathname;
+  const rawPathname = reqUrl.pathname || '/';
+  const pathname = (rawPathname.length > 1 && rawPathname.endsWith('/'))
+    ? rawPathname.slice(0, -1)
+    : rawPathname;
 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -1604,6 +1607,12 @@ const server = http.createServer(async (req, res) => {
     activeVpnDetails.isAdmin = isRunningAsAdmin();
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     return res.end(JSON.stringify(activeVpnDetails));
+  }
+
+  // API 404 Guard: Never serve HTML for unmatched /api/ routes
+  if (pathname.startsWith('/api/')) {
+    res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+    return res.end(JSON.stringify({ success: false, error: `API Маршрут ${pathname} [${req.method}] не найден` }));
   }
 
   let filePath = path.join(PUBLIC_DIR, pathname === '/' ? 'index.html' : pathname);
