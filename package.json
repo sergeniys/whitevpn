@@ -1,6 +1,6 @@
 {
   "name": "kartsevpn",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "KartseVPN - High Speed VPN Client for Android & Desktop",
   "main": "server.js",
   "scripts": {
