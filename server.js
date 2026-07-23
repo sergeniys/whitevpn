@@ -1257,8 +1257,7 @@ const server = http.createServer(async (req, res) => {
       activeVpnConfigPaths.push(xrayConfigPath);
 
       xrayProc.stdout.on('data', data => addLogLine('XRAY-STDOUT', data.toString().trim()));
-      xrayProc.stderr.on('data', data => addLogLine('XRAY-STDERR', data.toString().trim()));
-
+      if (adminState && fs.existsSync(SINGBOX_BIN)) {
         const hostIp = (node.host || node.server || '').trim();
         const bypassCidrs = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostIp) ? [`${hostIp}/32`] : [];
 
@@ -1460,8 +1459,7 @@ const server = http.createServer(async (req, res) => {
       activeVpnConfigPaths.push(xrayConfigPath);
 
       xrayProc.stdout.on('data', data => addLogLine('DOUBLE-XRAY-STDOUT', data.toString().trim()));
-      xrayProc.stderr.on('data', data => addLogLine('DOUBLE-XRAY-STDERR', data.toString().trim()));
-
+      if (adminState && fs.existsSync(SINGBOX_BIN)) {
         const relayHost = (relayNode.host || relayNode.server || '').trim();
         const exitHost = (exitNode.host || exitNode.server || '').trim();
         const bypassCidrs = [];
