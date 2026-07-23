@@ -372,28 +372,30 @@ function testSocks5Proxy(socksPort, timeoutMs = 5000) {
 }
 
 function buildSingboxOutbound(node, tag = 'proxy', detourTag = null) {
+  const proto = (node.protocol || 'vless').toLowerCase();
   const outbound = {
-    type: node.protocol.toLowerCase(),
+    type: proto,
     tag: tag,
-    server: node.host,
-    server_port: node.port
+    server: node.host || node.server,
+    server_port: parseInt(node.port || node.server_port || 8443, 10)
   };
 
   if (detourTag) {
     outbound.detour = detourTag;
   }
 
-  if (node.protocol === 'VLESS') {
+  if (proto === 'vless') {
     outbound.uuid = node.uuid || '00000000-0000-0000-0000-000000000000';
     if (node.flow) outbound.flow = node.flow;
 
-    if (node.security === 'tls' || node.security === 'reality') {
+    const sec = (node.security || 'reality').toLowerCase();
+    if (sec === 'tls' || sec === 'reality') {
       outbound.tls = {
         enabled: true,
-        server_name: node.sni || node.host,
-        utls: { enabled: true, fingerprint: node.fp || 'chrome' }
+        server_name: node.sni || node.host || node.server,
+        utls: { enabled: true, fingerprint: node.fp || node.fingerprint || 'chrome' }
       };
-      if (node.security === 'reality') {
+      if (sec === 'reality') {
         outbound.tls.reality = {
           enabled: true,
           public_key: node.pbk || '',
@@ -401,19 +403,19 @@ function buildSingboxOutbound(node, tag = 'proxy', detourTag = null) {
         };
       }
     }
-  } else if (node.protocol === 'VMess') {
+  } else if (proto === 'vmess') {
     outbound.uuid = node.uuid || '00000000-0000-0000-0000-000000000000';
     outbound.security = 'auto';
-    if (node.security === 'tls') {
-      outbound.tls = { enabled: true, server_name: node.sni || node.host };
+    if ((node.security || '').toLowerCase() === 'tls') {
+      outbound.tls = { enabled: true, server_name: node.sni || node.host || node.server };
     }
-  } else if (node.protocol === 'Trojan') {
+  } else if (proto === 'trojan') {
     outbound.password = node.password || '';
-    outbound.tls = { enabled: true, server_name: node.sni || node.host };
-  } else if (node.protocol === 'Hysteria2') {
+    outbound.tls = { enabled: true, server_name: node.sni || node.host || node.server };
+  } else if (proto === 'hysteria2') {
     outbound.type = 'hysteria2';
     outbound.password = node.auth || '';
-    outbound.tls = { enabled: true, server_name: node.sni || node.host };
+    outbound.tls = { enabled: true, server_name: node.sni || node.host || node.server };
   }
 
   return outbound;
@@ -592,6 +594,7 @@ function stopActiveVpn() {
     addLogLine('INFO', 'Активные процессы VPN успешно остановлены.');
   }
   setWindowsSystemProxy(false);
+  try { exec('ipconfig /flushdns', () => {}); } catch (e) {}
   for (const cPath of activeVpnConfigPaths) {
     if (fs.existsSync(cPath)) {
       try { fs.unlinkSync(cPath); } catch (e) {}
@@ -1282,6 +1285,10 @@ const server = http.createServer(async (req, res) => {
               server: '127.0.0.1',
               server_port: freePort,
               udp_fragment: true
+            },
+            {
+              type: 'direct',
+              tag: 'direct'
             }
           ],
           route: {
@@ -1377,22 +1384,25 @@ const server = http.createServer(async (req, res) => {
       },
       inbounds: inbounds,
       route: {
+        auto_detect_interface: true,
         rules: [
+          { outbound: 'direct', process_name: ['xray.exe', 'sing-box.exe', 'xray', 'sing-box', 'happd.exe', 'Happ.exe'] },
           { action: 'sniff' },
-          { port: 443, network: 'udp', action: 'reject' }
+          { action: 'hijack-dns', protocol: 'dns' }
         ]
       },
-      outbounds: [exitOutbound, relayOutbound]
+      outbounds: [exitOutbound, relayOutbound, { type: 'direct', tag: 'direct' }]
     };
 
     fs.writeFileSync(configPath, JSON.stringify(singboxConfig, null, 2), 'utf8');
 
     try {
-      activeVpnProcess = spawn(SINGBOX_BIN, ['run', '-c', configPath]);
-      activeVpnConfigPath = configPath;
+      const doubleProc = spawn(SINGBOX_BIN, ['run', '-c', configPath]);
+      activeVpnProcesses.push(doubleProc);
+      activeVpnConfigPaths.push(configPath);
 
-      activeVpnProcess.stdout.on('data', data => addLogLine('DOUBLE-STDOUT', data.toString().trim()));
-      activeVpnProcess.stderr.on('data', data => addLogLine('DOUBLE-STDERR', data.toString().trim()));
+      doubleProc.stdout.on('data', data => addLogLine('DOUBLE-STDOUT', data.toString().trim()));
+      doubleProc.stderr.on('data', data => addLogLine('DOUBLE-STDERR', data.toString().trim()));
 
       setWindowsSystemProxy(true, `127.0.0.1:${freePort}`, `127.0.0.1:${freePort}`);
 
