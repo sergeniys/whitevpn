@@ -403,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Render Table with TCP Ping, TLS ALPN, HTTP URL Ping
-  function renderNodesTable(nodes) {
+  function renderNodesTable(nodes, preserveResults = false) {
     if (!nodes || nodes.length === 0) {
       nodeListBody.innerHTML = `
         <tr class="empty-row">
@@ -418,34 +418,83 @@ document.addEventListener('DOMContentLoaded', () => {
     btnTestAll.disabled = false;
     summaryBar.classList.remove('hidden');
     statTotal.textContent = nodes.length;
-    statWorking.textContent = '0';
-    statFailed.textContent = '0';
-    statBest.textContent = '--';
 
-    testResults = {};
+    if (!preserveResults) {
+      testResults = {};
+      statWorking.textContent = '0';
+      statFailed.textContent = '0';
+      statBest.textContent = '--';
+    }
 
-    nodeListBody.innerHTML = nodes.map(node => `
-      <tr id="row-${node.id}">
-        <td>
-          <div class="node-name">
-            <span>${escapeHtml(node.name)}</span>
-            <span class="node-subtext">${node.host}:${node.port} (${node.sni || 'no-sni'})</span>
-          </div>
-        </td>
-        <td><span class="badge badge-neutral">${node.protocol}</span></td>
-        <td id="ping-${node.id}"><span class="text-dim">--</span></td>
-        <td id="tls-${node.id}"><span class="text-dim">--</span></td>
-        <td id="urlping-${node.id}"><span class="text-dim">--</span></td>
-        <td id="speed-${node.id}"><span class="text-dim">--</span></td>
-        <td id="score-${node.id}"><span class="text-dim">--</span></td>
-        <td>
-          <div style="display:flex; gap:4px">
-            <button class="btn btn-secondary btn-sm btn-test-single" data-id="${node.id}">Тест</button>
-            <button class="btn btn-primary btn-sm btn-connect-single" data-id="${node.id}">Подключить</button>
-          </div>
-        </td>
-      </tr>
-    `).join('');
+    nodeListBody.innerHTML = nodes.map(node => {
+      const res = testResults[node.id];
+      let pingHtml = '<span class="text-dim">--</span>';
+      let tlsHtml = '<span class="text-dim">--</span>';
+      let urlPingHtml = '<span class="text-dim">--</span>';
+      let speedHtml = '<span class="text-dim">--</span>';
+      let scoreHtml = '<span class="text-dim">--</span>';
+
+      if (res) {
+        if (res.tcpOk) {
+          const cls = res.tcpLatencyMs < 200 ? 'ping-good' : (res.tcpLatencyMs < 500 ? 'ping-medium' : 'ping-bad');
+          pingHtml = `<span class="${cls}">${res.tcpLatencyMs} мс</span>`;
+        } else {
+          pingHtml = `<span class="ping-bad">Таймаут</span>`;
+        }
+
+        if (res.tlsOk) {
+          tlsHtml = `<span class="badge badge-success">OK (${res.tlsLatencyMs || 0}мс)</span>`;
+        } else {
+          tlsHtml = `<span class="badge badge-danger">RST / Ошибка</span>`;
+        }
+
+        if (res.urlPingOk) {
+          const cls = res.urlPingMs < 400 ? 'ping-good' : (res.urlPingMs < 1000 ? 'ping-medium' : 'ping-bad');
+          urlPingHtml = `<strong class="${cls}">⚡ ${res.urlPingMs} мс</strong>`;
+        } else {
+          urlPingHtml = `<span class="ping-bad">❌ Ошибка URL</span>`;
+        }
+
+        if (res.diagnostic?.happUsable) {
+          speedHtml = `<strong style="color: var(--accent-emerald)">~${res.mbpsSpeed} Mbps</strong>`;
+          const score = res.diagnostic.youtubeScore;
+          const scoreClass = score >= 75 ? 'score-high' : (score >= 50 ? 'score-mid' : 'score-low');
+          scoreHtml = `
+            <span class="score-badge ${scoreClass}">${score}/100</span>
+            <button class="btn-link text-dim btn-details" data-id="${node.id}" style="font-size:11px; margin-left:4px; background:none; border:none; color:var(--accent-cyan); cursor:pointer">Инфо</button>
+          `;
+        } else if (res.diagnostic) {
+          speedHtml = `<span class="ping-bad">0 Mbps</span>`;
+          scoreHtml = `
+            <span class="score-badge score-low">0/100</span>
+            <button class="btn-link btn-details" data-id="${node.id}" style="font-size:11px; margin-left:4px; background:none; border:none; color:var(--accent-amber); cursor:pointer">Причина</button>
+          `;
+        }
+      }
+
+      return `
+        <tr id="row-${node.id}">
+          <td>
+            <div class="node-name">
+              <span>${escapeHtml(node.name)}</span>
+              <span class="node-subtext">${node.host}:${node.port} (${node.sni || 'no-sni'})</span>
+            </div>
+          </td>
+          <td><span class="badge badge-neutral">${node.protocol}</span></td>
+          <td id="ping-${node.id}">${pingHtml}</td>
+          <td id="tls-${node.id}">${tlsHtml}</td>
+          <td id="urlping-${node.id}">${urlPingHtml}</td>
+          <td id="speed-${node.id}">${speedHtml}</td>
+          <td id="score-${node.id}">${scoreHtml}</td>
+          <td>
+            <div style="display:flex; gap:4px">
+              <button class="btn btn-secondary btn-sm btn-test-single" data-id="${node.id}">Тест</button>
+              <button class="btn btn-primary btn-sm btn-connect-single" data-id="${node.id}">Подключить</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
 
     document.querySelectorAll('.btn-test-single').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -461,6 +510,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const node = loadedNodes.find(n => n.id === id);
         if (node) connectSingleNode(node);
       });
+    });
+
+    document.querySelectorAll('.btn-details').forEach(b => {
+      const id = b.getAttribute('data-id');
+      const node = loadedNodes.find(n => n.id === id);
+      if (node && testResults[id]) {
+        b.addEventListener('click', () => showDiagnosticModal(node, testResults[id]));
+      }
     });
   }
 
@@ -529,9 +586,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // 3. HTTP URL Ping (HTTP 204 GET via Proxy)
       if (data.urlPingOk) {
-        urlPingTd.innerHTML = `<strong style="color:var(--accent-emerald)">204 OK (${data.urlPingMs}мс)</strong>`;
+        urlPingTd.innerHTML = `<strong class="ping-good">⚡ ${data.urlPingMs} мс</strong>`;
       } else {
-        urlPingTd.innerHTML = `<span class="ping-bad">Ошибка URL</span>`;
+        urlPingTd.innerHTML = `<span class="ping-bad">❌ Ошибка URL</span>`;
       }
 
       // 4. Speed & Score
@@ -565,11 +622,25 @@ document.addEventListener('DOMContentLoaded', () => {
   // Test All Batch
   btnTestAll.addEventListener('click', async () => {
     btnTestAll.disabled = true;
-    btnTestAll.innerHTML = '<span class="icon">⌛</span> Выполняется тесты...';
+    btnTestAll.innerHTML = '<span class="icon">⌛</span> Выполняются тесты...';
 
     for (const node of loadedNodes) {
       await testSingleNode(node);
     }
+
+    // Automatically sort loadedNodes by lowest (best) URL Ping (urlPingMs)
+    loadedNodes.sort((a, b) => {
+      const resA = testResults[a.id];
+      const resB = testResults[b.id];
+
+      const pingA = (resA && resA.urlPingOk && resA.urlPingMs > 0) ? resA.urlPingMs : 999999;
+      const pingB = (resB && resB.urlPingOk && resB.urlPingMs > 0) ? resB.urlPingMs : 999999;
+
+      return pingA - pingB;
+    });
+
+    // Re-render table with sorted nodes and preserved test badges
+    renderNodesTable(loadedNodes, true);
 
     btnTestAll.disabled = false;
     btnTestAll.innerHTML = '<span class="icon">▶</span> Тестировать все серверы';

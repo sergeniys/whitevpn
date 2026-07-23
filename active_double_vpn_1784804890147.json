@@ -1,0 +1,61 @@
+{
+  "log": {
+    "level": "info"
+  },
+  "dns": {
+    "servers": [
+      {
+        "tag": "remote-dns",
+        "type": "udp",
+        "server": "1.1.1.1"
+      }
+    ]
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "interface_name": "singbox-tun0",
+      "address": [
+        "172.19.0.1/30"
+      ],
+      "auto_route": true,
+      "strict_route": true,
+      "stack": "gvisor"
+    },
+    {
+      "type": "mixed",
+      "tag": "mixed-in",
+      "listen": "127.0.0.1",
+      "listen_port": 20808,
+      "set_system_proxy": true
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "port": 443,
+        "network": "udp",
+        "action": "reject"
+      }
+    ]
+  },
+  "outbounds": [
+    {
+      "type": "vless",
+      "tag": "exit-overseas",
+      "server": "31.76.52.24",
+      "server_port": 8443,
+      "detour": "relay-rf"
+    },
+    {
+      "type": "vless",
+      "tag": "relay-rf",
+      "server": "150.241.101.212",
+      "server_port": 8443
+    }
+  ]
+}
