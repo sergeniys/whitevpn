@@ -1294,6 +1294,7 @@ const server = http.createServer(async (req, res) => {
           route: {
             auto_detect_interface: true,
             rules: [
+              { outbound: 'direct', ip_cidr: [`${(node.host || node.server).trim()}/32`] },
               { outbound: 'direct', process_name: ['xray.exe', 'sing-box.exe', 'xray', 'sing-box', 'happd.exe', 'Happ.exe'] },
               { action: 'sniff' },
               { action: 'hijack-dns', protocol: 'dns' }
@@ -1389,7 +1390,7 @@ const server = http.createServer(async (req, res) => {
                   {
                     id: exitNode.uuid || '00000000-0000-0000-0000-000000000000',
                     encryption: 'none',
-                    flow: exitNode.flow || 'xtls-rprx-vision',
+                    flow: '',
                     security: 'auto'
                   }
                 ]
@@ -1419,7 +1420,7 @@ const server = http.createServer(async (req, res) => {
                   {
                     id: relayNode.uuid || '00000000-0000-0000-0000-000000000000',
                     encryption: 'none',
-                    flow: relayNode.flow || 'xtls-rprx-vision',
+                    flow: '',
                     security: 'auto'
                   }
                 ]
@@ -1493,6 +1494,7 @@ const server = http.createServer(async (req, res) => {
           route: {
             auto_detect_interface: true,
             rules: [
+              { outbound: 'direct', ip_cidr: [`${(relayNode.host || relayNode.server).trim()}/32`, `${(exitNode.host || exitNode.server).trim()}/32`] },
               { outbound: 'direct', process_name: ['xray.exe', 'sing-box.exe', 'xray', 'sing-box', 'happd.exe', 'Happ.exe'] },
               { action: 'sniff' },
               { action: 'hijack-dns', protocol: 'dns' }
