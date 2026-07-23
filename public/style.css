@@ -554,3 +554,71 @@ input[type="text"]:focus, textarea:focus, .select-input:focus {
 .diag-detail { font-size: 13px; color: var(--text-main); line-height: 1.6; }
 
 .hidden { display: none !important; }
+
+/* Mobile Responsiveness Media Queries */
+@media (max-width: 900px) {
+  .app-container {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .main-content {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .header-right-widgets {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .ip-geo-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .summary-bar {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .btn {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  .table-container {
+    max-height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ip-geo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .button-row {
+    flex-direction: column;
+  }
+
+  .input-with-button {
+    flex-direction: column;
+  }
+
+  .input-with-button button {
+    width: 100%;
+  }
+}
+

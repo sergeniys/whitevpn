@@ -2,8 +2,14 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VPN Suite & TUN Client</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1f6feb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WhiteVPN">
+  <title>WhiteVPN Mobile & Desktop Suite</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="https://img.icons8.com/fluency/192/000000/shield.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -16,8 +22,8 @@
       <div class="logo-group">
         <div class="logo-icon">⚡</div>
         <div>
-          <h1>VPN & Double Tunnel Suite <span class="badge-v2">PRO v8.0</span></h1>
-          <p class="subtitle">Принудительное обновление WinINet, определение внешнего IP/страны и блокировка QUIC</p>
+          <h1>WhiteVPN <span class="badge-v2">PRO v8.0</span></h1>
+          <p class="subtitle">VLESS / Reality / XHTTP, Wintun & Двойной VPN</p>
         </div>
       </div>
 
@@ -44,7 +50,7 @@
         <div id="connection-dot" class="status-dot dot-off"></div>
         <div>
           <h3 id="vpn-status-title">VPN Отключен</h3>
-          <p id="vpn-status-desc">Трафик вашего компьютера идет напрямую через оператора связи.</p>
+          <p id="vpn-status-desc">Трафик идет напрямую через оператора связи.</p>
         </div>
       </div>
       <button id="btn-vpn-disconnect" class="btn btn-danger hidden">
@@ -71,7 +77,7 @@
 
         <div class="button-row">
           <button id="btn-load-user-json" class="btn btn-accent" style="width: 100%;">
-            <span class="icon">📥</span> Загрузить мой serverjson.txt (Нидерланды)
+            <span class="icon">📥</span> Загрузить мои серверы (serverjson.txt)
           </button>
         </div>
 
@@ -80,8 +86,8 @@
           <h3><span class="icon">⚙️</span> Движок исполнения (Core Engine):</h3>
           <div class="form-group">
             <select id="select-vpn-engine" class="select-input">
-              <option value="singbox">Sing-Box Core v1.13.14 (Рекомендуется для системного TUN)</option>
-              <option value="xray">Xray-Core v25.1.30 (VLESS Reality / Vision)</option>
+              <option value="singbox">Sing-Box Core (Рекомендуется для Wintun/TUN)</option>
+              <option value="xray">Xray-Core (VLESS Reality / Vision)</option>
             </select>
           </div>
 
@@ -96,7 +102,7 @@
         </div>
 
         <div class="form-group" style="margin-top: 4px;">
-          <label for="sub-url">URL подписки v2raytun / Happ:</label>
+          <label for="sub-url">URL подписки (V2Ray / VLESS):</label>
           <div class="input-with-button">
             <input type="text" id="sub-url" placeholder="https://example.com/api/v1/client/subscribe?token=..." />
             <button id="btn-load-url" class="btn btn-primary">Загрузить</button>
@@ -117,7 +123,7 @@
         <!-- Double Tunneling Section -->
         <div class="chain-builder-card">
           <h3><span class="icon">🔗</span> Подключение через Двойной Туннель</h3>
-          <p class="text-sm">Обход тотальных Белых списков РФ (Трафик: ПК ➔ Узел РФ ➔ Зарубеж):</p>
+          <p class="text-sm">Обход тотальных Белых списков РФ (Трафик: Клиент ➔ Узел РФ ➔ Зарубеж):</p>
           <div class="form-group" style="margin-top: 6px;">
             <label>1. Реле-сервер (Допустимый IP в РФ):</label>
             <select id="select-relay-node" class="select-input">
@@ -147,7 +153,7 @@
         <!-- Live IP GEO Card -->
         <div class="ip-geo-card">
           <div class="ip-geo-header">
-            <span class="icon">🌍</span> <strong>Мой Внешний IP и Геолокация ПК:</strong>
+            <span class="icon">🌍</span> <strong>Мой Внешний IP и Геолокация:</strong>
             <button id="btn-refresh-ip" class="btn-sm btn-outline" style="margin-left: auto;">🔄 Обновить IP</button>
           </div>
           <div class="ip-geo-grid">
@@ -219,7 +225,7 @@
             </thead>
             <tbody id="node-list-body">
               <tr class="empty-row">
-                <td colspan="8">Загрузите подписку или нажмите "Загрузить мой serverjson.txt" для начала работы.</td>
+                <td colspan="8">Загрузите подписку или нажмите "Загрузить мои серверы" для начала работы.</td>
               </tr>
             </tbody>
           </table>
@@ -253,5 +259,14 @@
   </div>
 
   <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => {
+          console.log('SW registration error:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>
