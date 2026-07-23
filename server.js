@@ -978,15 +978,16 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  if (pathname === '/api/parse-subscription' && req.method === 'POST') {
+  if ((pathname === '/api/parse-subscription' || pathname === '/api/sub/fetch' || pathname === '/api/sub/parse-raw') && req.method === 'POST') {
     const body = await getJsonBody(req);
-    const { url: subUrl, content } = body;
+    const subUrl = body.subUrl || body.url;
+    const content = body.rawText || body.content;
 
     if (subUrl) {
       const fetchRes = await fetchUrl(subUrl, 8000);
       if (!fetchRes.ok) {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-        return res.end(JSON.stringify({ error: `Не удалось загрузить подписку по URL: ${fetchRes.error || ('HTTP ' + fetchRes.status)}` }));
+        return res.end(JSON.stringify({ success: false, error: `Не удалось загрузить подписку по URL: ${fetchRes.error || ('HTTP ' + fetchRes.status)}` }));
       }
       const nodes = parseSubscription(fetchRes.body);
       const userNode = parseUserServerJson();
@@ -1006,7 +1007,41 @@ const server = http.createServer(async (req, res) => {
     }
 
     res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-    return res.end(JSON.stringify({ error: 'Не указан URL или текст подписки' }));
+    return res.end(JSON.stringify({ success: false, error: 'Не указан URL или текст подписки' }));
+  }
+
+  if (pathname === '/api/test-relay-suitability' && req.method === 'POST') {
+    const { relayNode } = await getJsonBody(req);
+    if (!relayNode || !relayNode.host) {
+      res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({ error: 'Не указан сервер-кандидат' }));
+    }
+
+    const sampleExitNode = {
+      name: 'Exit Node Sample',
+      protocol: 'vless',
+      host: '31.76.52.24',
+      port: 8443,
+      uuid: relayNode.uuid || '8312c8be-9ac8-4db0-bd7e-dd38ae2b73e9',
+      flow: 'xtls-rprx-vision',
+      security: 'reality',
+      sni: 'ign.com',
+      pbk: relayNode.pbk || 'SbVKOEMjK0sIlbwg4akyBg5mL5KZwwB-ed4eEE7YnRc',
+      fingerprint: 'chrome'
+    };
+
+    const chainRes = await runChainedDoubleTunnelTest(relayNode, sampleExitNode);
+    const isSuitable = chainRes && chainRes.urlPingOk;
+
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    return res.end(JSON.stringify({
+      success: true,
+      isSuitable: isSuitable,
+      status: isSuitable ? 'SUITABLE' : 'UNSUITABLE',
+      message: isSuitable
+        ? `✅ Сервер ${relayNode.name} СПОСОБЕН быть Реле! Транзитное проксирование работает.`
+        : `❌ Сервер ${relayNode.name} НЕ СПОСОБЕН быть Реле (Сбрасывает двойные VLESS пакеты).`
+    }));
   }
 
   if (pathname === '/api/test-node' && req.method === 'POST') {

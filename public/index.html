@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="KartseVPN">
-  <title>KartseVPN Mobile</title>
+  <title>KartseVPN Mobile & Desktop Client</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="https://img.icons8.com/fluency/192/000000/shield.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,7 +17,7 @@
 </head>
 <body class="mobile-app">
   <div class="app-wrapper">
-    <!-- Top Mobile Header -->
+    <!-- Top Header -->
     <header class="app-header">
       <div class="logo-group">
         <div class="logo-icon">🛡️</div>
@@ -26,14 +26,12 @@
           <p class="subtitle">Android & Windows Client</p>
         </div>
       </div>
-      <div class="header-right-widgets">
-        <div id="admin-badge" class="badge badge-neutral">
-          <span class="icon">🛡️</span> ADMIN: OK
-        </div>
-      </div>
+      <button id="btn-dpi-check" class="btn btn-outline btn-sm">
+        <span class="icon">🔍</span> Проверить DPI
+      </button>
     </header>
 
-    <!-- Navigation Tabs (Happ Style) -->
+    <!-- Navigation Tabs -->
     <nav class="nav-tabs">
       <button class="nav-tab active" data-tab="tab-home">
         <span class="tab-icon">⚡</span>
@@ -53,17 +51,27 @@
       </button>
     </nav>
 
-    <!-- TAB 1: HOME (Connection & Big Button) -->
+    <!-- TAB 1: HOME (Connection, DPI & Big Button) -->
     <section id="tab-home" class="tab-content active">
-      <!-- Main Status Banner -->
+      <!-- Network & DPI Status Banner -->
+      <div id="dpi-banner" class="status-banner banner-info">
+        <div class="banner-icon">🌐</div>
+        <div class="banner-content">
+          <h3 id="dpi-title">Проверка сети не выполнена</h3>
+          <p id="dpi-desc">Нажмите "Проверить DPI", чтобы узнать текущий статус блокировок ТСПУ.</p>
+        </div>
+        <div id="dpi-status-badge" class="badge badge-neutral">Ожидание</div>
+      </div>
+
+      <!-- Main Status Card -->
       <div id="status-card" class="hero-status-card status-disconnected">
         <div class="hero-status-header">
           <span id="connection-dot" class="status-dot dot-off"></span>
           <span id="vpn-status-text" class="status-text font-bold">ОТКЛЮЧЕНО</span>
         </div>
-        <p id="vpn-status-subtext" class="status-subtext">Ваш интернет идет напрямую без защиты</p>
+        <p id="vpn-status-subtext" class="status-subtext">Трафик идет напрямую без VPN</p>
         
-        <!-- Big Connect Power Button -->
+        <!-- Big Connect Button -->
         <div class="power-button-container">
           <button id="btn-power-connect" class="power-button power-off">
             <span class="power-icon">⚡</span>
@@ -82,9 +90,9 @@
       <div class="card quick-select-card">
         <div class="card-header">
           <span class="icon">📍</span>
-          <strong>Текущий узел подключения:</strong>
+          <strong>Узел подключения:</strong>
         </div>
-        <div class="form-group" style="margin-top: 8px;">
+        <div class="form-group">
           <select id="select-active-node" class="select-input select-lg">
             <option value="">-- Загрузите список серверов --</option>
           </select>
@@ -95,7 +103,7 @@
         </div>
       </div>
 
-      <!-- Mode Selector (Single vs Double VPN) -->
+      <!-- Single vs Double VPN Mode Card -->
       <div class="card mode-toggle-card">
         <div class="card-header">
           <span class="icon">🛡️</span>
@@ -104,15 +112,14 @@
         <div class="mode-buttons-group">
           <button id="mode-btn-single" class="mode-btn active">
             <span>🛡️ Одиночный VPN</span>
-            <small>Максимальная скорость</small>
+            <small>Прямая высокая скорость</small>
           </button>
           <button id="mode-btn-double" class="mode-btn">
             <span>🔗 Двойной Туннель</span>
-            <small>Обход белых списков РФ</small>
+            <small>Обход Белых списков РФ</small>
           </button>
         </div>
 
-        <!-- Double VPN Selectors (Hidden by default) -->
         <div id="double-vpn-controls" class="double-controls-box hidden">
           <div class="form-group">
             <label>1. Реле-узел в РФ:</label>
@@ -130,29 +137,59 @@
       </div>
     </section>
 
-    <!-- TAB 2: SERVERS LIST -->
+    <!-- TAB 2: SERVERS LIST (FULL DIAGNOSTIC MATRIX) -->
     <section id="tab-servers" class="tab-content">
       <div class="card">
         <div class="card-header-row">
           <h2>🌐 Список серверов</h2>
-          <button id="btn-test-all-tab" class="btn btn-success btn-sm">
-            <span class="icon">▶</span> Тест пинга
-          </button>
+          <div class="button-row">
+            <button id="btn-test-all" class="btn btn-success btn-sm">
+              <span class="icon">▶</span> Тестировать все
+            </button>
+            <button id="btn-export-best" class="btn btn-outline btn-sm">
+              <span class="icon">💾</span> Лучший
+            </button>
+          </div>
         </div>
 
+        <!-- Summary Bar -->
+        <div id="summary-bar" class="summary-bar hidden">
+          <div class="stat-card">
+            <span class="stat-value" id="stat-total">0</span>
+            <span class="stat-label">Всего</span>
+          </div>
+          <div class="stat-card stat-success">
+            <span class="stat-value" id="stat-working">0</span>
+            <span class="stat-label">Работают (HTTP 204)</span>
+          </div>
+          <div class="stat-card stat-danger">
+            <span class="stat-value" id="stat-failed">0</span>
+            <span class="stat-label">Заблокировано</span>
+          </div>
+          <div class="stat-card stat-primary">
+            <span class="stat-value" id="stat-best">--</span>
+            <span class="stat-label">Быстрый</span>
+          </div>
+        </div>
+
+        <!-- Full Diagnostic Table -->
         <div class="table-container" style="margin-top: 10px;">
           <table class="node-table">
             <thead>
               <tr>
                 <th>Сервер</th>
-                <th>Пинг (URL)</th>
+                <th>Протокол</th>
+                <th>TCP</th>
+                <th>TLS ALPN</th>
+                <th>URL Ping</th>
+                <th>Скорость</th>
                 <th>Балл</th>
-                <th>Выбор</th>
+                <th>Действия</th>
               </tr>
             </thead>
             <tbody id="node-list-body">
               <tr class="empty-row">
-                <td colspan="4">Загрузите подписку в Настройках или вставьте ссылки.</td>
+                <td colspan="8">Загрузите подписку в Настройках.</td>
               </tr>
             </tbody>
           </table>
@@ -160,56 +197,85 @@
       </div>
     </section>
 
-    <!-- TAB 3: ROUTING & SPLIT TUNNELING -->
+    <!-- TAB 3: ROUTING & PER-APP SPLIT TUNNELING -->
     <section id="tab-routing" class="tab-content">
       <div class="card">
         <div class="card-header">
           <span class="icon">🔀</span>
-          <h2>Умное разделение трафика (Split Tunneling)</h2>
+          <h2>Умная маршрутизация & Исключения приложений</h2>
         </div>
-        <p class="text-sm" style="margin-top: 6px; color: var(--text-dim);">
-          Выберите сайты и сервисы, которые будут подключаться <strong>НАПРЯМУЮ через провайдера (без VPN)</strong>:
+        <p class="text-sm" style="color: var(--text-dim);">
+          Выберите приложения на телефоне и домены, которые будут работать <strong>НАПРЯМУЮ (без VPN)</strong>:
         </p>
 
-        <div class="routing-presets-group" style="margin-top: 12px;">
+        <!-- Per-App Split Tunneling for Android -->
+        <div style="margin-top: 10px;">
+          <h3 style="font-size: 12px; color: var(--accent-cyan); margin-bottom: 6px;">📱 Исключить приложения на телефоне:</h3>
+          <div class="app-selection-grid">
+            <label class="app-chip">
+              <input type="checkbox" class="app-checkbox" value="com.yandex.browser">
+              <span>🌐 Яндекс Браузер</span>
+            </label>
+            <label class="app-chip">
+              <input type="checkbox" class="app-checkbox" value="ru.sberbankmobile">
+              <span>💳 Сбербанк Онлайн</span>
+            </label>
+            <label class="app-chip">
+              <input type="checkbox" class="app-checkbox" value="ru.gosuslugi.portal">
+              <span>🏛️ Госуслуги</span>
+            </label>
+            <label class="app-chip">
+              <input type="checkbox" class="app-checkbox" value="org.telegram.messenger">
+              <span>✈️ Telegram</span>
+            </label>
+            <label class="app-chip">
+              <input type="checkbox" class="app-checkbox" value="com.whatsapp">
+              <span>💬 WhatsApp</span>
+            </label>
+            <label class="app-chip">
+              <input type="checkbox" class="app-checkbox" value="com.vkontakte.android">
+              <span>💙 ВКонтакте</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 10px;">
+          <label for="custom-app-packages">Пакеты других приложений (через запятую):</label>
+          <input type="text" id="custom-app-packages" placeholder="com.example.app, com.banking.app" />
+        </div>
+
+        <!-- Web Domain Bypass -->
+        <div class="routing-presets-group" style="margin-top: 10px;">
           <label class="checkbox-card">
             <input type="checkbox" id="route-preset-ru" checked>
             <div class="checkbox-info">
-              <strong>🇷🇺 Российские сайты (.ru, Госуслуги, Яндекс, Банки)</strong>
-              <small>Подключаются напрямую для высокой скорости и защиты от блокировок банков</small>
-            </div>
-          </label>
-
-          <label class="checkbox-card">
-            <input type="checkbox" id="route-preset-steam">
-            <div class="checkbox-info">
-              <strong>🎮 Игровые сервисы (Steam, Discord, Torrent)</strong>
-              <small>Низкий пинг в играх и сохранение прямой скорости</small>
+              <strong>🇷🇺 Все сайты РФ (.ru, Госуслуги, Банки) напрямую</strong>
+              <small>Высокая скорость и отсутствие блокировок от провайдеров РФ</small>
             </div>
           </label>
         </div>
 
-        <div class="form-group" style="margin-top: 14px;">
-          <label for="custom-direct-domains">Дополнительные домены напрямую (через запятую):</label>
-          <textarea id="custom-direct-domains" rows="3" placeholder="vk.com, ok.ru, sberbank.ru, ozon.ru"></textarea>
+        <div class="form-group" style="margin-top: 8px;">
+          <label for="custom-direct-domains">Свои домены напрямую:</label>
+          <textarea id="custom-direct-domains" rows="2" placeholder="vk.com, ok.ru, sberbank.ru"></textarea>
         </div>
 
         <button id="btn-save-routing" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
-          💾 Сохранить правила маршрутизации
+          💾 Сохранить правила обхода
         </button>
       </div>
     </section>
 
-    <!-- TAB 4: SETTINGS & SUBSCRIPTIONS -->
+    <!-- TAB 4: SETTINGS & RELAY SUITABILITY TESTER -->
     <section id="tab-settings" class="tab-content">
       <div class="card">
         <div class="card-header">
           <span class="icon">📥</span>
-          <h2>Импорт подписки & Ядро</h2>
+          <h2>Импорт подписки & Настройки</h2>
         </div>
 
-        <div class="form-group" style="margin-top: 10px;">
-          <label for="sub-url">URL подписки V2Ray / Happ:</label>
+        <div class="form-group">
+          <label for="sub-url">URL подписки (V2Ray / VLESS):</label>
           <div class="input-with-button">
             <input type="text" id="sub-url" placeholder="https://example.com/sub/token..." />
             <button id="btn-load-url" class="btn btn-primary">Загрузить</button>
@@ -227,35 +293,39 @@
           <button id="btn-load-user-json" class="btn btn-accent" style="flex:2">📥 Мои серверы</button>
         </div>
 
-        <div class="tun-stack-card" style="margin-top: 14px;">
-          <h3><span class="icon">⚙️</span> Движок VPN:</h3>
+        <div class="tun-stack-card" style="margin-top: 10px;">
+          <h3><span class="icon">⚙️</span> Движок исполнение:</h3>
           <div class="form-group">
             <select id="select-vpn-engine" class="select-input">
-              <option value="singbox">Sing-Box Core (Рекомендуется Wintun)</option>
+              <option value="singbox">Sing-Box Core (Рекомендуется Wintun/TUN)</option>
               <option value="xray">Xray-Core (VLESS Reality / Vision)</option>
-            </select>
-          </div>
-
-          <h3><span class="icon">🛠️</span> Сетевой стек TUN:</h3>
-          <div class="form-group">
-            <select id="select-tun-stack" class="select-input">
-              <option value="gvisor">gVisor (Google Stack) — Защита ТСПУ</option>
-              <option value="lwip">lwIP — Высокая скорость</option>
-              <option value="system">System / Wintun</option>
             </select>
           </div>
         </div>
       </div>
 
-      <!-- Logs Drawer -->
-      <div class="logs-console-box" style="margin-top: 12px;">
-        <div class="logs-console-header">
-          <span>📋 Логи KartseVPN</span>
-          <button id="btn-clear-logs" class="btn-sm btn-secondary">Очистить</button>
+      <!-- Relay Suitability Diagnostic Tool Card -->
+      <div class="card relay-tester-card">
+        <div class="card-header">
+          <span class="icon">🔍</span>
+          <h2>Проверка узла на роль Реле (Двойной VPN)</h2>
         </div>
-        <div id="live-logs-body" class="logs-body">
-          <div class="log-entry text-dim">[SYSTEM] KartseVPN готов к работе</div>
+        <p class="text-sm" style="color: var(--text-dim);">
+          Узнайте, разрешено ли на данном сервере в РФ <strong>транзитное проксирование</strong> на зарубежные страны:
+        </p>
+
+        <div class="form-group" style="margin-top: 8px;">
+          <label>Сервер для проверки:</label>
+          <select id="select-relay-test-node" class="select-input">
+            <option value="">-- Выберите узел --</option>
+          </select>
         </div>
+
+        <button id="btn-test-relay-suitability" class="btn btn-accent" style="width: 100%;">
+          🔍 Проверить способность к Двойному VPN
+        </button>
+
+        <div id="relay-test-result" class="chain-result-box hidden" style="margin-top: 8px;"></div>
       </div>
     </section>
   </div>
